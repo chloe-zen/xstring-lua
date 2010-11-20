@@ -1,6 +1,6 @@
 #!/usr/bin/make
 
-VERSION        = 1.0
+VERSION        = 1.0.1
 
 SO_LINK_PKGS   =
 PROG_LINK_PKGS = lua5.1
@@ -9,7 +9,7 @@ COMP_PKGS      = $(PROG_LINK_PKGS)
 pkg-libs     = $(foreach P,$1,$(shell pkg-config --libs   $P))
 pkg-cflags   = $(foreach P,$1,$(shell pkg-config --cflags $P))
 
-OPTIMIZE     = -g
+OPTIMIZE     = -g -O2
 CFLAGS       = -Wall -Wformat $(OPTIMIZE) $(call pkg-cflags, $(COMP_PKGS))
 SOFLAGS      = -shared
 LDFLAGS      = $(OPTIMIZE)
