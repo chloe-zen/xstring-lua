@@ -1,6 +1,7 @@
 #!/usr/bin/make
 
-VERSION        = 1.0.1
+VERSION        = 1.1
+PROD           = xstring-$(VERSION)
 
 SO_LINK_PKGS   =
 PROG_LINK_PKGS = lua5.1
@@ -22,7 +23,10 @@ TARGETS      = xstring.so testxs xsperf
 all: $(TARGETS)
 
 tardist:
-	tar -cvzf xstring-$(VERSION).tar.gz $(shell awk '{print $$1}' MANIFEST)
+	rm -rf tmp/$(PROD)
+	mkdir -p tmp/$(PROD)
+	cp -a $(shell awk '{print $$1}' MANIFEST) tmp/$(PROD)
+	tar -C tmp -cvzf $(PROD).tar.gz $(PROD)
 
 xstring.so: xstring.o
 	$(CC) $(LDFLAGS) $(SOFLAGS) -o $@ $^ $(SO_LIBS)

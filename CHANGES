@@ -1,5 +1,19 @@
+1.1	July 16, 2008
+
+     * When creating an xstring object, throw exception if xstring module is
+       not loaded.  Thanks to Ignacio Burguen~o for the debugging help and the
+       suggestion for this error.
+     * Load xstring module in perf test (!).  Benchmarks remain essentially
+       unchanged, though there is now a tiny cost visible for collecting the
+       xstring objects. 
+     * Cure a couple of memory leaks in xsperf.
+     * Separate the xstring module table from the metatable.  Just 'cause.
+     * Tarball now creates a subdirectory.
+
 1.0.1	July 15, 2008
+
      * re-release with MIT License
 
 1.0	July 14, 2008
+
      * original release at Lua Workshop 2008

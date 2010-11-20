@@ -11,9 +11,10 @@
 #define _buf_valid(B)    ((B) && (B)->data)
 #define _xstr_valid(XS)  _buf_valid((XS)->buf) /* currently not possible for it to be null */
 
-#define checkxs(L,I)     (xstr_t *)luaL_checkudata(L, I, xstr_mt)
+#define checkxs(L,I)     (xstr_t *)luaL_checkudata(L, I, xstr_metaname)
 
-static const char xstr_mt[]    = "xstring";
+static const char xstr_modname[]  = "xstring";
+#define xstr_metaname xstr_modname
 
 /*================================================================
  * xstr
@@ -92,7 +93,9 @@ static xstr_t *_xstr_newptr(lua_State *L, xsbuf_t *b) {
     xs->buf = XSBUF_USE(b);
     xs->pos = 0;
     xs->len = b->size;
-    luaL_getmetatable(L, xstr_mt);
+    luaL_getmetatable(L, xstr_metaname);
+    if (lua_isnil(L, -1))
+	luaL_error(L, "module " LUA_QS " not loaded", xstr_modname);
     lua_setmetatable(L, -2);
     return xs;
 }
@@ -118,7 +121,7 @@ static xstr_t *_xstr_get(lua_State *L, int n) {
 	return NULL;
     if (!lua_getmetatable(L, n))
 	return NULL;
-    lua_getfield(L, LUA_REGISTRYINDEX, xstr_mt);
+    luaL_getmetatable(L, xstr_metaname);
     if (!lua_rawequal(L, -1, -2))
 	ud = NULL;		/* wrong kind of userdata */
     lua_pop(L, 2);
@@ -145,7 +148,7 @@ const char *xstring_toaddr(lua_State *L, int n, size_t *l) {
 const char *xstring_check(lua_State *L, int n, size_t *l) {
     const char *p = xstring_toaddr(L, n, l);
     if (!p)
-	luaL_typerror(L, n, xstr_mt);
+	luaL_typerror(L, n, xstr_metaname);
     return p;
 }
 
@@ -223,9 +226,13 @@ static int xstr_sub(lua_State *L) {
  * LUA API GLUE
  */
 
-static const luaL_Reg xstr_regf[] = {
+static const luaL_Reg xstr_metaf[] = {
     { "__gc",       xstr_gc          },
     { "__tostring", xstr_string      },
+    { 0, 0 }
+};
+
+static const luaL_Reg xstr_regf[] = {
     { "string",     xstr_string      },
     { "addr",       xstr_addr        },
     { "size",       xstr_size        },
@@ -234,18 +241,15 @@ static const luaL_Reg xstr_regf[] = {
 };
 
 int luaopen_xstring(lua_State *L) {
-    static const char pubmod[] = "xstring";
+    /* create metatable in the usual way; leave on stack */
+    luaL_newmetatable(L, xstr_metaname);
+    luaL_register(L, NULL, xstr_metaf);
 
-    luaL_register(L, pubmod, xstr_regf);
+    /* create package; leave on stack */
+    luaL_register(L, xstr_modname, xstr_regf);
 
-    /* registry.xstring = xstring */
-    lua_getglobal(L, pubmod);
-    lua_setfield(L, LUA_REGISTRYINDEX, pubmod);
-
-    /* xstring.__index = xstring */
-    lua_getglobal(L, pubmod);
-    lua_pushvalue(L, -1);
-    lua_setfield(L, -1, "__index");
+    /* metatable.__index = package */
+    lua_setfield(L, -2, "__index");
     lua_pop(L, 1);
 
 #if 0

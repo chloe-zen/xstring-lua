@@ -120,9 +120,6 @@ int main(int argc, char **argv) {
 	die("Can't load xsperf.lua: %s\n", lua_tostring(L, -1));
     lua_settop(L, 0);
 
-    char *parambuf = malloc(max_param_size);
-    assert(parambuf);
-
     /*
      * run the test
      */
@@ -186,6 +183,9 @@ int main(int argc, char **argv) {
 	die("Can't get ending real time: %s\n", strerror(errno));
     if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &proc_end))
 	die("Can't get ending process time: %s\n", strerror(errno));
+
+    for (i = 0; i < num_params; ++i)
+	free(params[i].buf);
 
     lua_close(L);
 
