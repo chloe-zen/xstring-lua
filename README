@@ -1,0 +1,84 @@
+xtring - External String Module
+         by Chip Salzenberg <chip@pobox.com>
+
+OVERVIEW
+
+This Lua module provides the abstraction "xstring", or "external string".
+
+An external string is a userdata object that represents a string (more
+generally, a memory area) not owned by any Lua instance.  It solves the
+problem of performance loss and memory usage caused by Lua's taking an
+internal copy of all strings before working with them.
+
+The xstring implementation is based on two C structures: the xsbuf and the
+xstr.  An xsbuf is a structure with a reference count, a pointer, and a
+size.  An xstr is the structure inside the userdata of the Lua xstring
+objects, which refers to a portion of an xsbuf.
+
+The xsbuf and xstr structures are both quite small and simple; it is
+therefore extremely inexpensive to create and destroy them.  Their only
+complexity is actually an efficiency hack: each xstr actually represents a
+*substring* of a given memory area (usually, however, this is the substring
+of the whole).  This allows for sub-xstring creation without forcing
+conversion to an interned Lua string ... which would defeat the entire
+purpose of having xstrings in the first place.
+
+
+COSTS AND BENEFITS
+
+The benefits of the xstring module is as already stated: In the right
+circumstances it can be stunningly efficient compared to interned strings.
+
+In the original target application, this speed improvement makes Lua usable
+where it would otherwise not be.
+
+Costs, in turn, are modest, and one of them can be overcome with some small
+effort:
+
+   1. Any function that works directly with xstrings must perforce be
+      written in C/C++.  Of course such operations on xstrings will not be
+      complex, so writing those functions will be no great challenge.
+
+   2. External strings are read-only.  This was the obvious first step in
+      the project, and meets the author's immediate needs.  Mutable xstrings
+      would need some API work and some internal refactoring.  For example,
+      the simple refcounting of xbufs would need to become the more complex
+      copy-on-write refcounting of C++ std::string.  On the good side, the
+      existing Lua "allocation function" typedef is perfect as a possible
+      fourth element of a mutable xsbuf.
+
+
+HOW TO CREATE THEM
+
+An xstring-using application will first, at the C level, create an
+xsbuf with the xsbuf_new() function.  The application may then choose to
+create one or more xstring objects; each of them is a Lua userdata object
+containing an xstr structure.  The xstr points to the xsbuf; the xsbuf's
+reference count is increased for each "user".  (The original creator code
+is considered the first user, so xsbufs are born with a refcount of one.)
+
+What happens next depends on the lifetime of the target memory:
+
+  1. If the target memory area will outlive the Lua instance, then the
+     creator code can safely let Lua clean up the xsbuf whenever it is no
+     longer needed, so it may simply call xsbuf_discard() on the xsbuf and
+     walk away.
+
+  2. If the target memory area will become unavailable before the Lua
+     instance is closed, then the creator code must hold onto the xsbuf
+     pointer and, when the memory is no longer available, call xsbuf_kill()
+     on the xsbuf; only *then* may it call xsbuf_discard() and walk away.
+
+
+HOW TO USE THEM
+
+Within C code that uses xstrings, the primary functions are lauxlib-style
+argument checkers:
+
+     const char * xstring_check(lua_State *L, int n, size_t *l);
+     const char * xstring_toaddr(lua_State *L, int n, size_t *l);
+
+Both of these functions return the address of the external string at
+position "n", and also set *l to the string's length (if "l" is not null).
+If position "n" is not an xstring, then xstring_check() throws an argument
+error, while xstring_toaddr() simply returns NULL.
